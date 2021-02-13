@@ -4,3 +4,5 @@ export type Category =
   | 'Fitnessgram+'
   | 'Word Play'
   | '(Not Quick) Maffs';
+
+export type Board = [Category, number, number, number, number, number][];

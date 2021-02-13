@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import Grid from '@material-ui/core/Grid';
 import {
@@ -8,7 +8,7 @@ import {
   makeStyles,
 } from '@material-ui/core/styles';
 
-import { Category } from './types';
+import { Board as BoardType, Category } from './types';
 import Board from './components/Board';
 import Title from './components/Title';
 
@@ -26,8 +26,24 @@ const useStyles = makeStyles((theme: Theme) => ({
 
 const App = () => {
   const classes = useStyles();
+  const [board, setBoard] = useState<BoardType>([
+    [ 'Lame Puzzles', 100, 200, 300, 400, 500 ],
+    [ 'Manipulatives', 100, 200, 300, 400, 500 ],
+    [ 'Fitnessgram+', 100, 200, 300, 400, 500 ],
+    [ 'Word Play', 200, 400, 600, 800, 1000 ],
+    [ '(Not Quick) Maffs', 200, 400, 600, 800, 1000 ],
+  ]);
+  const copyBoard = () => board.map((row) => [...row]);
   const onCardClick = (category: Category, value: number) => {
     console.log(category, value);
+    const newBoard = copyBoard();
+    newBoard.forEach((row) => {
+      if (row[0] === category) {
+        const index = row.indexOf(value);
+        row[index] = row[index] as number * -1;
+      }
+    });
+    setBoard(newBoard as BoardType);
   };
 
   return (
@@ -37,7 +53,7 @@ const App = () => {
           <Title />
         </Grid>
         <Grid item xs={12} style={{ flexGrow: 1 }}>
-          <Board onCardClick={onCardClick} />
+          <Board board={board} onCardClick={onCardClick} />
         </Grid>
       </Grid>
     </MuiThemeProvider>

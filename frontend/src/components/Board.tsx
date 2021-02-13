@@ -2,13 +2,15 @@ import React from 'react';
 
 import Card from '@material-ui/core/Card';
 import CardActionArea from '@material-ui/core/CardActionArea';
+import CardContent from '@material-ui/core/CardContent';
 import Container from '@material-ui/core/Container';
 import Grid from '@material-ui/core/Grid';
 import Typography from '@material-ui/core/Typography';
 import { Theme, makeStyles, useTheme } from '@material-ui/core/styles';
+import clsx from 'clsx';
 import useMediaQuery from '@material-ui/core/useMediaQuery';
 
-import { Category } from '../types';
+import { Board as BoardType, Category } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({
   card: {
@@ -17,15 +19,20 @@ const useStyles = makeStyles((theme: Theme) => ({
       margin: theme.spacing(0.5),
     },
   },
+  cardDisabled: {
+    pointerEvents: 'none',
+    backgroundColor: theme.palette.grey[900],
+  },
   cardAction: {
-    padding: theme.spacing(3, 0),
+    padding: `${theme.spacing(3, 0)}!important`,
     [theme.breakpoints.up('md')]: {
-      padding: theme.spacing(5, 0),
+      padding: `${theme.spacing(5, 0)}!important`,
     },
   },
 }));
 
 interface IBoardProps {
+  board: BoardType;
   onCardClick: (category: Category, value: number) => void;
 }
 
@@ -34,52 +41,47 @@ const Board = (props: IBoardProps) => {
   const theme = useTheme();
   const mobile = !useMediaQuery(theme.breakpoints.up('md'));
 
-  const categories: Category[] = [
-    'Lame Puzzles',
-    'Manipulatives',
-    'Fitnessgram+',
-    'Word Play',
-    '(Not Quick) Maffs',
-  ];
-
   const padding = (key: number = 0) => <Grid item xs={1} key={`padding_${key}`} />
 
   return (
     <Container>
       <Grid container>
         {padding(100)}
-        {categories.map((v, i) => {
+        {props.board.map((v, i) => {
           return (
-            <Grid item xs={2} key={`category-${i}_${v}`}>
+            <Grid item xs={2} key={`category-${i}_${v[0]}`}>
               <Typography
                 variant={mobile ? 'subtitle1' : 'h6'}
                 align='center'
                 color='textSecondary'
               >
-                {v}
+                {v[0]}
               </Typography>
             </Grid>
           );
         })}
         {padding(101)}
-        {Array.from({ length: 5 }, (_v, row) => (
-          [padding(row * 2), ...categories.map((category) => {
-            let value = (row + 1) * 100;
-            if (category === 'Word Play' || category === '(Not Quick) Maffs') {
-              value *= 2;
-            }
-
+        {Array.from({ length: 5 }, (_, row) => (
+          [padding(row * 2), ...props.board.map((v) => {
+            const category = v[0];
+            const value = Math.abs(v[row + 1] as number);
+            const available = v[row + 1] > 0;
+            const Content: any = available ? CardActionArea : CardContent;
             return (
-              <Grid item xs={2} key={`card-${category}_${row}`}>
-                <Card className={classes.card}>
-                  <CardActionArea
-                    onClick={() => props.onCardClick(category, value)}
+              <Grid item xs={2} key={`card-${category}_${value}`}>
+                <Card className={clsx(classes.card, {[classes.cardDisabled]: !available})}>
+                  <Content
+                    onClick={available ? () => props.onCardClick(category, value) : undefined}
                     className={classes.cardAction}
                   >
-                    <Typography variant={mobile ? 'h6' : 'h5'} align='center'>
+                    <Typography
+                      variant={mobile ? 'h6' : 'h5'}
+                      align='center'
+                      color={available ? 'textPrimary' : 'textSecondary'}
+                    >
                       {(value / (mobile ? 100 : 1)).toFixed(0)}
                     </Typography>
-                  </CardActionArea>
+                  </Content>
                 </Card>
               </Grid>
             );

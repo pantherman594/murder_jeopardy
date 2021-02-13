@@ -24,9 +24,10 @@ const port = process.env.PORT || 5000;
 const ADMIN = 'ADMIN';
 
 let endTime: number = -1;
-let board: Board = generateBoard();
-let log: LogEntry[] = [];
-let submissionIds: { [key: string]: { team: string; category: string; value: number; } } = {};
+const board: Board = generateBoard();
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const _log: LogEntry[] = [];
+const submissionIds: { [key: string]: { team: string; category: string; value: number; } } = {};
 
 const teamIds = ['HEVI', 'KRNU', 'FHGB', 'VZDM'];
 const teams: { [id: string]: TeamState } = {
@@ -55,6 +56,18 @@ const teams: { [id: string]: TeamState } = {
 const getTotalPoints = (): number => (
   Object.values(teams).map((teamData) => teamData.points).reduce((a, b) => a + b)
 );
+
+const log = (entry: LogEntry) => {
+  _log.push(entry);
+  io.to(ADMIN).emit('log', entry);
+};
+
+const stripBoard = () => Object.keys(board).map((category) => (
+  [category, ...Object.keys(board[category]).map((val) => {
+    const c = board[category][val];
+    return c.value * (c.available ? 1 : -1);
+  })]
+));
 
 if (process.env.NODE_ENV === 'production') {
   const webClient = path.join(__dirname, '..', '..', 'frontend', 'build');
@@ -96,7 +109,7 @@ app.get('/submitted/:id', (req, res) => {
   if (submission === undefined) return;
   const { team, category, value } = submission;
 
-  log.push({
+  log({
     timestamp: new Date().getTime(),
     team,
     event: 'submit',
@@ -119,7 +132,7 @@ io.on('connection', (socket: SocketIO.Socket) => {
 
   const makeSuccess = (event: string, successFn: Success) => (message: string, ...data: any) => {
     successFn(...data);
-    log.push({
+    log({
       timestamp: new Date().getTime(),
       team,
       event,
@@ -130,7 +143,7 @@ io.on('connection', (socket: SocketIO.Socket) => {
 
   const makeError = (event: string, errorFn: Error) => (message: string) => {
     errorFn(message);
-    log.push({
+    log({
       timestamp: new Date().getTime(),
       team,
       event,
@@ -167,11 +180,18 @@ io.on('connection', (socket: SocketIO.Socket) => {
 
     team = t;
     if (endTime < 0) {
-      endTime = new Date().getTime() + 90 * 60 * 60 * 1000;
+      const duration = 90 * 60 * 60 * 1000;
+      endTime = new Date().getTime() + duration;
+      setTimeout(() => {
+        const total = getTotalPoints();
+        const finalBoard = stripBoard();
+        teamIds.forEach((tId) => io.to(tId).emit('end', teams[tId].points, finalBoard, total));
+        io.to(ADMIN).emit('end', teams, board);
+      }, duration);
       io.to(ADMIN).emit('start', board, endTime, teams);
     }
 
-    onSuccess(`Joined team ${t}`, board, endTime, getTotalPoints());
+    onSuccess(`Joined team ${t}`, stripBoard(), endTime, getTotalPoints());
     teams[team]?.players.add(socket.id);
     io.to(ADMIN).emit('join', t);
   });
@@ -190,7 +210,7 @@ io.on('connection', (socket: SocketIO.Socket) => {
       teams[team].pending = card.id;
       onSuccess(`Opened ${category} for ${value}`);
       io.to(team).emit('open', card);
-      io.emit('update', board, getTotalPoints());
+      io.emit('update', stripBoard(), getTotalPoints());
     } else {
       onError('Invalid card.');
     }
@@ -231,7 +251,7 @@ io.on('connection', (socket: SocketIO.Socket) => {
       teams[team].points += value;
       io.to(team).emit('approve', category, value);
       io.to(ADMIN).emit('approve', category, value);
-      io.emit('update', board, getTotalPoints());
+      io.emit('update', stripBoard(), getTotalPoints());
     } else {
       onError('Invalid card.');
     }
@@ -261,7 +281,7 @@ io.on('connection', (socket: SocketIO.Socket) => {
     console.log('Client disconnected.');
     io.to(ADMIN).emit('disconnect', team);
     teams[team]?.players.delete(socket.id);
-    log.push({
+    log({
       timestamp: new Date().getTime(),
       team,
       event: 'disconnect',
