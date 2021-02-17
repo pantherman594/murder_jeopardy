@@ -34,5 +34,4 @@ export interface LogEntry {
   errored: boolean;
 }
 
-export type Success = (...data: any) => void;
-export type Error = (msg: string) => void;
+export type Callback = (error: string | null, ...data: any) => void;

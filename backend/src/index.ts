@@ -1,24 +1,28 @@
-import SocketIO from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import cors from 'cors';
+import { createServer } from 'http';
 import express from 'express';
-import http from 'http';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
 import {
   Board,
+  Callback,
   Category,
-  Error,
   LogEntry,
-  Success,
   TeamState,
 } from './types';
 import { generateBoard } from './board';
 
 const app = express();
 app.use(cors());
-const server = http.createServer(app);
-const io = new SocketIO.Server(server);
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+  },
+});
 const port = process.env.PORT || 5000;
 
 const ADMIN = 'ADMIN';
@@ -60,6 +64,7 @@ const getTotalPoints = (): number => (
 const log = (entry: LogEntry) => {
   _log.push(entry);
   io.to(ADMIN).emit('log', entry);
+  console.log('[LOG]', entry);
 };
 
 const stripBoard = () => Object.keys(board).map((category) => (
@@ -97,7 +102,9 @@ app.get('/submit/:category/:value', (req, res) => {
     value: parseInt(value, 10),
   };
 
-  res.redirect(`https://docs.google.com/forms/d/e/1FAIpQLSfAo17ZceWpeqrhyOaKYatRMChomqV0D_vugAn9clBdkuzlFQ/viewform?usp=pp_url&entry.658473068=${id}`);
+  const { title } = card;
+
+  res.redirect(`https://docs.google.com/forms/d/e/1FAIpQLSfAo17ZceWpeqrhyOaKYatRMChomqV0D_vugAn9clBdkuzlFQ/viewform?usp=pp_url&entry.1341464943=${title}&entry.658473068=${id}`);
 });
 
 app.get('/submitted/:id', (req, res) => {
@@ -122,16 +129,12 @@ app.get('/submitted/:id', (req, res) => {
   delete submissionIds[id];
 });
 
-server.listen(port, () => {
-  console.log('Running server on port %s', port);
-});
-
-io.on('connection', (socket: SocketIO.Socket) => {
+io.on('connection', (socket: Socket) => {
   let team: string | null = null;
   console.log('Connected client on port %s.', port);
 
-  const makeSuccess = (event: string, successFn: Success) => (message: string, ...data: any) => {
-    successFn(...data);
+  const makeSuccess = (event: string, callback: Callback) => (message: string, ...data: any) => {
+    callback(null, ...data);
     log({
       timestamp: new Date().getTime(),
       team,
@@ -141,8 +144,8 @@ io.on('connection', (socket: SocketIO.Socket) => {
     });
   };
 
-  const makeError = (event: string, errorFn: Error) => (message: string) => {
-    errorFn(message);
+  const makeError = (event: string, callback: Callback) => (message: string) => {
+    callback(message);
     log({
       timestamp: new Date().getTime(),
       team,
@@ -152,13 +155,13 @@ io.on('connection', (socket: SocketIO.Socket) => {
     });
   };
 
-  const makeResult = (event: string, successFn: Success, errorFn: Error) => [
-    makeSuccess(event, successFn),
-    makeError(event, errorFn),
+  const makeResult = (event: string, callback: Callback) => [
+    makeSuccess(event, callback),
+    makeError(event, callback),
   ];
 
-  socket.on('join', (t: string, success: Success, error: Error) => {
-    const [onSuccess, onError] = makeResult('join', success, error);
+  socket.on('join', (t: string, callback: Callback) => {
+    const [onSuccess, onError] = makeResult('join', callback);
 
     if (team === ADMIN) {
       team = ADMIN;
@@ -180,7 +183,7 @@ io.on('connection', (socket: SocketIO.Socket) => {
 
     team = t;
     if (endTime < 0) {
-      const duration = 90 * 60 * 60 * 1000;
+      const duration = 90 * 60 * 1000;
       endTime = new Date().getTime() + duration;
       setTimeout(() => {
         const total = getTotalPoints();
@@ -191,16 +194,21 @@ io.on('connection', (socket: SocketIO.Socket) => {
       io.to(ADMIN).emit('start', board, endTime, teams);
     }
 
-    onSuccess(`Joined team ${t}`, stripBoard(), endTime, getTotalPoints());
+    onSuccess(`Joined team ${t}`, stripBoard(), endTime, teams[t].points, getTotalPoints());
     teams[team]?.players.add(socket.id);
     io.to(ADMIN).emit('join', t);
   });
 
-  socket.on('open', (category: Category, value: number, success: Success, error: Error) => {
-    const [onSuccess, onError] = makeResult('open', success, error);
+  socket.on('open', (category: Category, value: number, callback: Callback) => {
+    const [onSuccess, onError] = makeResult('open', callback);
 
     if (team === null || team === ADMIN) {
       onError('Invalid team.');
+      return;
+    }
+
+    if (teams[team].pending !== null) {
+      onError('Already opened a card.');
       return;
     }
 
@@ -216,11 +224,16 @@ io.on('connection', (socket: SocketIO.Socket) => {
     }
   });
 
-  socket.on('cancel', (category: Category, value: number, success: Success, error: Error) => {
-    const [onSuccess, onError] = makeResult('cancel', success, error);
+  socket.on('cancel', (category: Category, value: number, callback: Callback) => {
+    const [onSuccess, onError] = makeResult('cancel', callback);
 
     if (team === null || team === ADMIN) {
       onError('Invalid team.');
+      return;
+    }
+
+    if (teams[team].pending === null) {
+      onError('No card is open.');
       return;
     }
 
@@ -234,9 +247,16 @@ io.on('connection', (socket: SocketIO.Socket) => {
     }
   });
 
+  socket.on('help', (callback: Callback) => {
+    const [onSuccess] = makeResult('help', callback);
+
+    onSuccess(`${team === null ? 'Unassigned user' : team} requested help`);
+    io.to(ADMIN).emit('help', team);
+  });
+
   // ADMIN ONLY
-  socket.on('approve', (submittingTeam: string, category: Category, value: number, success: Success, error: Error) => {
-    const [onSuccess, onError] = makeResult('approve', success, error);
+  socket.on('approve', (submittingTeam: string, category: Category, value: number, callback: Callback) => {
+    const [onSuccess, onError] = makeResult('approve', callback);
 
     if (team !== ADMIN) {
       onError('No permission');
@@ -258,8 +278,8 @@ io.on('connection', (socket: SocketIO.Socket) => {
   });
 
   // ADMIN ONLY
-  socket.on('reject', (submittingTeam: string, category: Category, value: number, success: Success, error: Error) => {
-    const [onSuccess, onError] = makeResult('reject', success, error);
+  socket.on('reject', (submittingTeam: string, category: Category, value: number, callback: Callback) => {
+    const [onSuccess, onError] = makeResult('reject', callback);
 
     if (team !== ADMIN) {
       onError('No permission');
@@ -279,14 +299,18 @@ io.on('connection', (socket: SocketIO.Socket) => {
 
   socket.on('disconnect', () => {
     console.log('Client disconnected.');
-    io.to(ADMIN).emit('disconnect', team);
+    io.to(ADMIN).emit('disconnected', team);
     teams[team]?.players.delete(socket.id);
     log({
       timestamp: new Date().getTime(),
       team,
-      event: 'disconnect',
+      event: 'disconnected',
       message: 'Player disconnected',
       errored: false,
     });
   });
+});
+
+server.listen(port, () => {
+  console.log('Running server on port %s', port);
 });
