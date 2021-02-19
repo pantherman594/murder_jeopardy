@@ -22,6 +22,10 @@ const c = <T extends Category>(base: ICardBase<T>): BoardCard<T> => ({
   status: CardStatus.AVAILABLE,
 });
 
+const fitnessgramAudio = () => (new Date().getTime() > 1613775600000
+  ? 'https://drive.google.com/file/d/1Tk23HOrJ5mAjpz-Br4IicOZX5r5VSO-P/view?usp=sharing'
+  : 'https://drive.google.com/file/d/1TLUZQdWX-Lem6k7dkkUyRsgI9SaHz6xg/view?usp=sharing');
+
 export const generateBoard = (): Board => ({
   'Lame Puzzles': {
     100: c({
@@ -157,7 +161,7 @@ Someone should come by your room with the pieces soon, if not let us know on Zoo
       value: 500,
       title: 'Fitnessgram Relay Race',
       description: `Fitness is very important for your bodies. And what better way to measure your fitness than the FITNESSGRAM PACER TEST. But we're doing it a bit differently this time. Split your team into quarters. One quarter will start with pushups, another with situps, and the third will run back and forth the long way across your room. The last quarter can rest. When the audio dings, rotate.  
-Here is your audio track: <https://drive.google.com/file/d/1TLUZQdWX-Lem6k7dkkUyRsgI9SaHz6xg/view?usp=sharing>. Do the whole thing.
+Here is your audio track: <${fitnessgramAudio()}>. Do the whole thing.
 
 *Submit your video.*`,
     }),
