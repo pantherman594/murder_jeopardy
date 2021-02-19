@@ -5,13 +5,26 @@ export type Category =
   | 'Word Play'
   | '(Not Quick) Maffs';
 
+export enum CardStatus {
+  AVAILABLE,
+  PENDING,
+  RECEIVED,
+  CANCELLED,
+  APPROVED,
+  REJECTED,
+}
+
 export interface BoardCard<T extends Category> {
   id: string;
   category: T;
   value: number;
   title: string;
   description: string;
-  available: boolean;
+  status: CardStatus;
+  submission?: {
+    attachments: string[];
+    text: string;
+  };
 }
 
 export interface TeamState {

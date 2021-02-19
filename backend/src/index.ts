@@ -1,4 +1,5 @@
 import { Server, Socket } from 'socket.io';
+import bodyParser from 'body-parser';
 import cors from 'cors';
 import { createServer } from 'http';
 import express from 'express';
@@ -7,7 +8,9 @@ import path from 'path';
 
 import {
   Board,
+  BoardCard,
   Callback,
+  CardStatus,
   Category,
   LogEntry,
   TeamState,
@@ -16,6 +19,7 @@ import { generateBoard } from './board';
 
 const app = express();
 app.use(cors());
+app.use(bodyParser.json());
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
@@ -31,7 +35,9 @@ let endTime: number = -1;
 const board: Board = generateBoard();
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _log: LogEntry[] = [];
-const submissionIds: { [key: string]: { team: string; category: string; value: number; } } = {};
+const submissionIds: {
+  [key: string]: { team: string; category: Category; value: number; };
+} = {};
 
 const teamIds = ['HEVI', 'KRNU', 'FHGB', 'VZDM'];
 const teams: { [id: string]: TeamState } = {
@@ -63,16 +69,25 @@ const getTotalPoints = (): number => (
 
 const log = (entry: LogEntry) => {
   _log.push(entry);
-  io.to(ADMIN).emit('log', entry);
+  io.to(ADMIN).emit('a_log', entry);
   console.log('[LOG]', entry);
 };
 
-const stripBoard = () => Object.keys(board).map((category) => (
-  [category, ...Object.keys(board[category]).map((val) => {
-    const c = board[category][val];
-    return c.value * (c.available ? 1 : -1);
+const stripBoard = () => Object.keys(board).map((category: Category) => (
+  [category, ...Object.keys(board[category]).map((val: string) => {
+    const c = board[category][val as unknown as number];
+    return c.value * (c.status === CardStatus.AVAILABLE ? 1 : -1);
   })]
 ));
+
+const teamsObj = () => (
+  Object.assign({}, ...teamIds.map((tId) => ({
+    [tId]: {
+      ...teams[tId],
+      players: [...teams[tId].players],
+    },
+  })))
+);
 
 if (process.env.NODE_ENV === 'production') {
   const webClient = path.join(__dirname, '..', '..', 'frontend', 'build');
@@ -81,7 +96,7 @@ if (process.env.NODE_ENV === 'production') {
 
 app.get('/submit/:category/:value', (req, res) => {
   const { category, value } = req.params;
-  const card = board[category]?.[value];
+  const card = board[category as Category]?.[value as unknown as number];
 
   if (card === undefined) {
     res.sendStatus(404);
@@ -98,7 +113,7 @@ app.get('/submit/:category/:value', (req, res) => {
   const id = nanoid();
   submissionIds[id] = {
     team,
-    category,
+    category: category as Category,
     value: parseInt(value, 10),
   };
 
@@ -107,7 +122,7 @@ app.get('/submit/:category/:value', (req, res) => {
   res.redirect(`https://docs.google.com/forms/d/e/1FAIpQLSfAo17ZceWpeqrhyOaKYatRMChomqV0D_vugAn9clBdkuzlFQ/viewform?usp=pp_url&entry.1341464943=${title}&entry.658473068=${id}`);
 });
 
-app.get('/submitted/:id', (req, res) => {
+app.post('/submitted/:id', (req, res) => {
   res.sendStatus(200);
 
   const { id } = req.params;
@@ -115,6 +130,8 @@ app.get('/submitted/:id', (req, res) => {
 
   if (submission === undefined) return;
   const { team, category, value } = submission;
+
+  const [, attachments = [], text] = req.body as [any, string[] | null, string, any];
 
   log({
     timestamp: new Date().getTime(),
@@ -124,8 +141,15 @@ app.get('/submitted/:id', (req, res) => {
     errored: false,
   });
 
-  io.to(ADMIN).emit('submit', team, category, value);
-  io.to(team).emit('submit');
+  const card = board[category][value];
+  card.status = CardStatus.RECEIVED;
+  card.submission = {
+    attachments,
+    text,
+  };
+
+  io.to(ADMIN).emit('a_update', board, teamsObj());
+  io.to(team).emit('open', card);
   delete submissionIds[id];
 });
 
@@ -163,14 +187,24 @@ io.on('connection', (socket: Socket) => {
   socket.on('join', (t: string, callback: Callback) => {
     const [onSuccess, onError] = makeResult('join', callback);
 
-    if (team === ADMIN) {
-      team = ADMIN;
-      onSuccess('Admin joined', board, endTime, teams);
+    if (team !== null) {
+      onError('Already in a team');
       return;
     }
 
-    if (team !== null) {
-      onError('Already in a team');
+    if (t === ADMIN) {
+      team = ADMIN;
+      onSuccess('Admin joined', stripBoard(), 0, 0, getTotalPoints());
+      socket.emit('admin', board, teamsObj(), _log);
+      socket.join(t);
+
+      if (endTime > 0) {
+        io.to(ADMIN).emit('a_start', board, endTime, teamsObj());
+      }
+
+      if (endTime > 0 && endTime < new Date().getTime()) {
+        socket.emit('a_end', board, teamsObj());
+      }
       return;
     }
 
@@ -189,18 +223,45 @@ io.on('connection', (socket: Socket) => {
         const total = getTotalPoints();
         const finalBoard = stripBoard();
         teamIds.forEach((tId) => io.to(tId).emit('end', teams[tId].points, finalBoard, total));
-        io.to(ADMIN).emit('end', teams, board);
+        io.to(ADMIN).emit('a_end', board, teamsObj());
       }, duration);
-      io.to(ADMIN).emit('start', board, endTime, teams);
+      io.to(ADMIN).emit('a_start', board, endTime, teamsObj());
     }
 
     onSuccess(`Joined team ${t}`, stripBoard(), endTime, teams[t].points, getTotalPoints());
-    teams[team]?.players.add(socket.id);
-    io.to(ADMIN).emit('join', t);
+
+    teams[t]?.players.add(socket.id);
+    io.to(ADMIN).emit('a_update', board, teamsObj());
+
+    if (teams[t].pending !== null) {
+      const card = Object.values(board)
+        .reduce((acc, cur) => (
+          acc.concat(Object.values(cur))
+        ), [] as BoardCard<Category>[])
+        .find((c) => c.id === teams[t].pending);
+      socket.emit('open', card);
+    }
+
+    if (endTime > 0 && endTime < new Date().getTime()) {
+      const finalBoard = stripBoard();
+      socket.emit('end', teams[t].points, finalBoard, getTotalPoints());
+    }
+  });
+
+  socket.on('help', (callback: Callback) => {
+    const [onSuccess] = makeResult('help', callback);
+
+    onSuccess(`${team === null ? 'Unassigned user' : team} requested help`);
+    io.to(ADMIN).emit('help', team);
   });
 
   socket.on('open', (category: Category, value: number, callback: Callback) => {
     const [onSuccess, onError] = makeResult('open', callback);
+
+    if (endTime > 0 && endTime < new Date().getTime()) {
+      onError('Game has ended.');
+      return;
+    }
 
     if (team === null || team === ADMIN) {
       onError('Invalid team.');
@@ -212,13 +273,15 @@ io.on('connection', (socket: Socket) => {
       return;
     }
 
-    if (board[category]?.[value]?.available === true) {
-      const card = board[category][value];
-      card.available = false;
+    const card = board[category]?.[value];
+    if (card?.status === CardStatus.AVAILABLE) {
+      card.status = CardStatus.PENDING;
       teams[team].pending = card.id;
+
       onSuccess(`Opened ${category} for ${value}`);
       io.to(team).emit('open', card);
       io.emit('update', stripBoard(), getTotalPoints());
+      io.to(ADMIN).emit('a_update', board, teamsObj());
     } else {
       onError('Invalid card.');
     }
@@ -226,6 +289,11 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('cancel', (category: Category, value: number, callback: Callback) => {
     const [onSuccess, onError] = makeResult('cancel', callback);
+
+    if (endTime > 0 && endTime < new Date().getTime()) {
+      onError('Game has ended.');
+      return;
+    }
 
     if (team === null || team === ADMIN) {
       onError('Invalid team.');
@@ -238,48 +306,61 @@ io.on('connection', (socket: Socket) => {
     }
 
     const card = board[category]?.[value];
-    if (card !== undefined && teams[team].pending === card.id && card.available === false) {
+    if (card?.status !== CardStatus.AVAILABLE && teams[team].pending === card?.id) {
       teams[team].pending = null;
+      card.status = CardStatus.CANCELLED;
+
       onSuccess(`Cancelled ${category} for ${value}`);
       io.to(team).emit('cancel', category, value);
+      io.to(ADMIN).emit('a_update', board, teamsObj());
     } else {
       onError('Invalid card.');
     }
   });
 
-  socket.on('help', (callback: Callback) => {
-    const [onSuccess] = makeResult('help', callback);
-
-    onSuccess(`${team === null ? 'Unassigned user' : team} requested help`);
-    io.to(ADMIN).emit('help', team);
-  });
-
   // ADMIN ONLY
-  socket.on('approve', (submittingTeam: string, category: Category, value: number, callback: Callback) => {
+  socket.on('approve', (category: Category, value: number, callback: Callback) => {
     const [onSuccess, onError] = makeResult('approve', callback);
 
+    if (endTime > 0 && endTime < new Date().getTime()) {
+      onError('Game has ended.');
+      return;
+    }
+
     if (team !== ADMIN) {
       onError('No permission');
       return;
     }
 
     const card = board[category]?.[value];
-    if (card !== undefined && teams[submittingTeam].pending === card.id
-        && card.available === false) {
+    if (card?.status === CardStatus.RECEIVED || card?.status === CardStatus.REJECTED) {
+      const submittingTeam = teamIds.find((t) => teams[t].pending === card?.id);
+      if (!submittingTeam) {
+        onError('Invalid card.');
+        return;
+      }
+
       teams[submittingTeam].pending = null;
+      card.status = CardStatus.APPROVED;
+
       onSuccess(`Approved ${category} for ${value}, for team ${submittingTeam}`);
-      teams[team].points += value;
-      io.to(team).emit('approve', category, value);
-      io.to(ADMIN).emit('approve', category, value);
+      teams[submittingTeam].points += value;
+      io.to(submittingTeam).emit('approve', teams[submittingTeam].points);
       io.emit('update', stripBoard(), getTotalPoints());
+      io.to(ADMIN).emit('a_update', board, teamsObj());
     } else {
       onError('Invalid card.');
     }
   });
 
   // ADMIN ONLY
-  socket.on('reject', (submittingTeam: string, category: Category, value: number, callback: Callback) => {
+  socket.on('reject', (category: Category, value: number, callback: Callback) => {
     const [onSuccess, onError] = makeResult('reject', callback);
+
+    if (endTime > 0 && endTime < new Date().getTime()) {
+      onError('Game has ended.');
+      return;
+    }
 
     if (team !== ADMIN) {
       onError('No permission');
@@ -287,11 +368,18 @@ io.on('connection', (socket: Socket) => {
     }
 
     const card = board[category]?.[value];
-    if (card !== undefined && teams[submittingTeam].pending === card.id
-        && card.available === false) {
+    if (card?.status === CardStatus.RECEIVED) {
+      const submittingTeam = teamIds.find((t) => teams[t].pending === card?.id);
+      if (!submittingTeam) {
+        onError('Invalid card.');
+        return;
+      }
+
+      card.status = CardStatus.REJECTED;
+
       onSuccess(`Rejected ${category} for ${value}, for team ${submittingTeam}`);
-      io.to(team).emit('reject', category, value);
-      io.to(ADMIN).emit('reject', category, value);
+      io.to(submittingTeam).emit('open', card);
+      io.to(ADMIN).emit('a_update', board, teamsObj());
     } else {
       onError('Invalid card.');
     }
@@ -299,7 +387,7 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('disconnect', () => {
     console.log('Client disconnected.');
-    io.to(ADMIN).emit('disconnected', team);
+    io.to(ADMIN).emit('a_update', board, teamsObj());
     teams[team]?.players.delete(socket.id);
     log({
       timestamp: new Date().getTime(),

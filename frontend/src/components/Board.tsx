@@ -10,7 +10,12 @@ import { Theme, makeStyles, useTheme } from '@material-ui/core/styles';
 import clsx from 'clsx';
 import useMediaQuery from '@material-ui/core/useMediaQuery';
 
-import { Board as BoardType, Category } from '../types';
+import {
+  AdminBoard,
+  Board as BoardType,
+  CardStatus,
+  Category,
+} from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({
   card: {
@@ -29,14 +34,31 @@ const useStyles = makeStyles((theme: Theme) => ({
       padding: `${theme.spacing(5, 0)}!important`,
     },
   },
+  pending: {
+    backgroundColor: '#807d5c',
+  },
+  received: {
+    backgroundColor: '#d9ca2a',
+  },
+  cancelled: {
+    backgroundColor: theme.palette.grey[900],
+  },
+  approved: {
+    backgroundColor: '#52ac39',
+  },
+  rejected: {
+    backgroundColor: '#ac3f39',
+  },
 }));
 
 interface IBoardProps {
   board: BoardType;
+  adminBoard: AdminBoard | null;
   onCardClick: (category: Category, value: number) => void;
 }
 
 const Board = (props: IBoardProps) => {
+  const { board, adminBoard, onCardClick } = props;
   const classes = useStyles();
   const theme = useTheme();
   const mobile = !useMediaQuery(theme.breakpoints.up('md'));
@@ -47,7 +69,7 @@ const Board = (props: IBoardProps) => {
     <Container>
       <Grid container>
         {padding(100)}
-        {props.board.map((v, i) => {
+        {board.map((v, i) => {
           return (
             <Grid item xs={2} key={`category-${i}_${v[0]}`}>
               <Typography
@@ -62,16 +84,24 @@ const Board = (props: IBoardProps) => {
         })}
         {padding(101)}
         {Array.from({ length: 5 }, (_, row) => (
-          [padding(row * 2), ...props.board.map((v) => {
+          [padding(row * 2), ...board.map((v) => {
             const category = v[0];
             const value = Math.abs(v[row + 1] as number);
-            const available = v[row + 1] > 0;
+            const available = v[row + 1] > 0 || adminBoard !== null;
             const Content: any = available ? CardActionArea : CardContent;
+            const status = adminBoard?.[category][value].status;
             return (
               <Grid item xs={2} key={`card-${category}_${value}`}>
-                <Card className={clsx(classes.card, {[classes.cardDisabled]: !available})}>
+                <Card className={clsx(classes.card, {
+                    [classes.cardDisabled]: !available,
+                    [classes.pending]: status === CardStatus.PENDING,
+                    [classes.received]: status === CardStatus.RECEIVED,
+                    [classes.cancelled]: status === CardStatus.CANCELLED,
+                    [classes.approved]: status === CardStatus.APPROVED,
+                    [classes.rejected]: status === CardStatus.REJECTED,
+                  })}>
                   <Content
-                    onClick={available ? () => props.onCardClick(category, value) : undefined}
+                    onClick={available ? () => onCardClick(category, value) : undefined}
                     className={classes.cardAction}
                   >
                     <Typography

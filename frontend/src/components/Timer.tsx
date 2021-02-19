@@ -2,12 +2,16 @@ import React, { useEffect, useState } from 'react';
 
 import Typography from '@material-ui/core/Typography';
 
+const getRemaining = (endTime: number) => (
+  Math.max(0, Math.floor((endTime - new Date().getTime()) / 1000))
+);
+
 const Timer = ({ endTime }: { endTime: number }) => {
-  const [remaining, setRemaining] = useState<number>(90 * 60);
+  const [remaining, setRemaining] = useState<number>(getRemaining(endTime));
 
   useEffect(() => {
     const int = setInterval(() => {
-      setRemaining(Math.max(0, Math.floor((endTime - new Date().getTime()) / 1000)));
+      setRemaining(getRemaining(endTime));
     }, 1000);
 
     return () => {
