@@ -255,7 +255,7 @@ Here is your audio track: <https://drive.google.com/file/d/1TLUZQdWX-Lem6k7dkkUy
       value: 600,
       title: 'Unit Circle',
       description: `Fill in this blank unit circle: <https://drive.google.com/file/d/1WeLlOa5AhbLY9LDiJhfl8TxaEBlwd-P-/view?usp=sharing>.  
-An example has been provided.
+An example has been provided. Ask if you want a paper copy.
 
 *Submit a picture of the completed unit circle.*`,
     }),
@@ -263,7 +263,7 @@ An example has been provided.
       category: '(Not Quick) Maffs',
       value: 800,
       title: 'Farmer Dan\'s Silo',
-      description: `Are you ready for some math and a little bit of phyics? Go to <https://docs.google.com/document/d/1-YD-lzRh_4J-1uzhv58Xkpy8y91QENpAca1pO4PQhEs/edit?usp=sharing> to lend farmer Dan a hand with his silos! Ask if you need paper.
+      description: `Are you ready for some math and a little bit of phyics? Go to <https://docs.google.com/document/d/1-YD-lzRh_4J-1uzhv58Xkpy8y91QENpAca1pO4PQhEs/edit?usp=sharing> to lend farmer Dan a hand with his silos! Ask if you need scratch paper.
 
 *Submit a picture of your answers to all 3 parts. Work must be shown.*`,
     }),
