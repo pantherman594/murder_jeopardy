@@ -35,7 +35,7 @@ import Board from './components/Board';
 import Timer from './components/Timer';
 import Title from './components/Title';
 
-const URL = 'http://localhost:5000';
+const URL = process.env.NODE_ENV === 'production' ? 'https://murder.dav.sh' : 'http://localhost:5000';
 
 const INITIAL_BOARD: BoardType = [
   [ 'Lame Puzzles', -100, -200, -300, -400, -500 ],
