@@ -96,12 +96,19 @@ Someone should come by your room with the pieces soon, if not let us know on Zoo
       category: 'Manipulatives',
       value: 200,
       title: 'Cup Stacking',
-      description: '', // TODO
+      description: `1. **Yank the Paper** - Place a cup on the table, then place a piece of paper on top of it. Then, place another cup on top of the paper, and repeat placing cups and paper until you have four cups stacked. You must pull the papers out of the stack and end with the cups neatly stacked within each other.
+2. **Flip Cup** - Place a cup upside down on the edge of the table with part of the cup hanging off. You must flip the cup by only touching the cup where it is hanging off the table and it must land upside down on the table with no parts of the cup off the table. 
+3. **Bottle Flip** (cup is acceptable to use if there are no bottles available) - Hold a cup by the lip and flip it onto the table upside down. A water bottle will be provided if requested. 
+4. **Cup Tower** - Construct a cup tower that is at least 4 rows of cups tall. Then, deconstruct the tower within 4 strokes. 
+
+(Further explanation may be requested if desired) 
+
+*Submit a video showing everything.*`,
     }),
     300: c({
       category: 'Manipulatives',
       value: 300,
-      title: 'Jello Chopsticks',
+      title: 'Cups of Jello',
       description: `We will provide two cups of jello and two empty cups, as well as forks for each team member. Move the jello to the empty cups using only the forks (no tipping and pouring) in a relay style, with 15 seconds for each person until the cups are empty. There must also be someone visibly T-posing in the background at all times.
 
 *Submit the video, with each team member moving jello and T-posing for an almost equal amount of time.*`,
@@ -144,7 +151,9 @@ Someone should come by your room with the pieces soon, if not let us know on Zoo
       category: 'Fitnessgram+',
       value: 300,
       title: 'Naruto Run',
-      description: `Record a video of your team Naruto running in a single file line on the second floor of Stokes South, from the top of the chocolate bar stairs to the classrooms on the opposite end and back. Then, have someone else record your team doing it again but in a V formation.
+      description: `Record a video of your team Naruto running\\* in a single file line on the second floor of Stokes South, from the top of the chocolate bar stairs to the classrooms on the opposite end and back. Then, have someone else record your team doing it again but in a V formation.
+
+\\* running involves moving at whatever speed your team is comfortable with, you don't have to actually run.
 
 *Submit the video.*`,
     }),
@@ -152,7 +161,7 @@ Someone should come by your room with the pieces soon, if not let us know on Zoo
       category: 'Fitnessgram+',
       value: 400,
       title: 'Plank',
-      description: `This one's simple. Plank until failure.
+      description: `This one's simple. Plank until failure. Minimum 45 seconds.
 
 *Submit a video of everyone planking until you cannot plank any longer.*`,
     }),
@@ -160,8 +169,20 @@ Someone should come by your room with the pieces soon, if not let us know on Zoo
       category: 'Fitnessgram+',
       value: 500,
       title: 'Fitnessgram Relay Race',
-      description: `Fitness is very important for your bodies. And what better way to measure your fitness than the FITNESSGRAM PACER TEST. But we're doing it a bit differently this time. Split your team into quarters. One quarter will start with pushups, another with situps, and the third will run back and forth the long way across your room. The last quarter can rest. When the audio dings, rotate.  
-Here is your audio track: <${fitnessgramAudio()}>. Do the whole thing.
+      description: `Fitness is very important for your bodies. And what better way to measure your fitness than the FITNESSGRAM PACER TEST. But we're doing it a bit differently this time.
+
+1. Split your team into quarters.
+2. Each quarter will do a different activity until the announcer beeps and says a new number.
+3. Rotate the activity each quarter is doing.
+
+The activities:
+
+* Pushups for the entire duration
+* Situps for the entire duration
+* Run back and forth the long way across your room
+* Rest
+
+Here is your audio track: <https://drive.google.com/file/d/1TLUZQdWX-Lem6k7dkkUyRsgI9SaHz6xg/view?usp=sharing>. Do the whole thing.
 
 *Submit your video.*`,
     }),
