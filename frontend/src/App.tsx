@@ -41,7 +41,7 @@ const INITIAL_BOARD: BoardType = [
   [ 'Lame Puzzles', -100, -200, -300, -400, -500 ],
   [ 'Manipulatives', -100, -200, -300, -400, -500 ],
   [ 'Fitnessgram+', -100, -200, -300, -400, -500 ],
-  [ 'Word Play', -200, -400, -600, -800, -1000 ],
+  [ 'Videos and VBS', -200, -400, -600, -800, -1000 ],
   [ '(Not Quick) Maffs', -200, -400, -600, -800, -1000 ],
 ];
 
@@ -72,6 +72,7 @@ const MDTypography = (props: any) => {
       {...rest}
       component='span'
       variant='body1'
+      style={{ fontWeight: 'inherit' }}
     >
       {children}
     </Typography>
@@ -367,7 +368,7 @@ const App = () => {
         </DialogActions>
       </Dialog>
       <Dialog open={card !== null}>
-        <DialogTitle>{card?.title}</DialogTitle>
+        <DialogTitle>{card?.title} ({card?.value})</DialogTitle>
         <DialogContent>
           <ReactMarkdown
             renderers={{

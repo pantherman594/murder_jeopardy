@@ -2,7 +2,7 @@ export type Category =
   'Lame Puzzles'
   | 'Manipulatives'
   | 'Fitnessgram+'
-  | 'Word Play'
+  | 'Videos and VBS'
   | '(Not Quick) Maffs';
 
 export enum CardStatus {

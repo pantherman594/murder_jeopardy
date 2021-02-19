@@ -29,7 +29,7 @@ const io = new Server(server, {
 });
 const port = process.env.PORT || 5000;
 
-const ADMIN = 'ADMIN';
+const ADMIN = process.env.ADMIN_KEY || 'ADMIN';
 
 let endTime: number = -1;
 const board: Board = generateBoard();
